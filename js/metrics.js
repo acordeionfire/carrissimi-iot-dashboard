@@ -15,7 +15,7 @@
   const DIA = 24 * HORA;
 
   const ESTADOS = ['ativo', 'espera', 'inativo'];
-  const ROTULO = { ativo: 'ATIVO', espera: 'ESPERA', inativo: 'INATIVO' };
+  const ROTULO = { ativo: 'ATIVO', espera: 'EM_ESPERA', inativo: 'INATIVO' };
 
   /* ---------- Status vindo do banco ---------- */
 
