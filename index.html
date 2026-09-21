@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard — CARRISSIMI IoT | Supervisão Industrial</title>
+  <meta name="description" content="Monitoramento em tempo real de tornos industriais via CLP: utilização, disponibilidade, perda de capacidade e impacto financeiro estimado." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============ MENU LATERAL ============ -->
+    <aside class="menu" aria-label="Menu principal">
+      <div class="marca">
+        <div class="marca-icone">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div>
+          <p class="marca-nome">CARRISSIMI</p>
+          <p class="marca-sub">IoT Supervisão</p>
+        </div>
+      </div>
+
+      <nav class="menu-lista">
+        <a class="menu-item ativo" href="index.html" aria-current="page">
+          <svg viewBox="0 0 24 24" class="ico"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+          Dashboard
+        </a>
+        <span class="menu-item desativado" title="Em breve">
+          <svg viewBox="0 0 24 24" class="ico"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>
+          Equipamentos <em>em breve</em>
+        </span>
+        <span class="menu-item desativado" title="Em breve">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          Histórico <em>em breve</em>
+        </span>
+        <span class="menu-item desativado" title="Em breve">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg>
+          Relatórios <em>em breve</em>
+        </span>
+        <span class="menu-item desativado" title="Em breve">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+          Indicadores <em>em breve</em>
+        </span>
+      </nav>
+
+      <div class="menu-rodape">
+        <p class="menu-empresa" id="empresaNome">—</p>
+        <p class="menu-cnpj" id="empresaCnpj"></p>
+      </div>
+    </aside>
+
+    <!-- ============ CONTEÚDO ============ -->
+    <div class="conteudo">
+      <header class="topo">
+        <div class="topo-titulo">
+          <h1>Dashboard operacional</h1>
+          <p class="topo-sub">
+            <span id="subtitulo">Carregando…</span>
+          </p>
+        </div>
+
+        <div class="topo-acoes">
+          <div class="pilula-conexao" id="conexao" role="status" aria-live="polite">
+            <span class="led led-espera"></span><span id="conexaoTexto">Conectando…</span>
+          </div>
+          <div class="periodos" id="periodos" role="group" aria-label="Período de análise"></div>
+          <div class="periodo-custom" id="periodoCustom" hidden>
+            <input type="date" id="dataDe" aria-label="Data inicial" />
+            <span>→</span>
+            <input type="date" id="dataAte" aria-label="Data final" />
+          </div>
+        </div>
+      </header>
+
+      <main class="principal" id="principal">
+        <div id="faixaAviso"></div>
+
+        <!-- 1. KPIs -->
+        <section aria-label="Indicadores principais">
+          <div class="grade-kpi" id="kpisAgora"></div>
+          <div class="grade-kpi" id="kpisPeriodo"></div>
+        </section>
+
+        <!-- 2. Equipamentos agora -->
+        <section class="painel">
+          <header class="painel-cab">
+            <div>
+              <h2>Equipamentos agora</h2>
+              <p>Estado atual reportado pelos CLPs e resultado de cada máquina no período.</p>
+            </div>
+          </header>
+          <div class="grade-maquinas" id="maquinas"></div>
+        </section>
+
+        <!-- 3. Linha do tempo -->
+        <section class="painel">
+          <header class="painel-cab">
+            <div>
+              <h2>Linha do tempo dos estados</h2>
+              <p>Cada faixa mostra o que a máquina fez ao longo do período. Passe o mouse para ver os detalhes.</p>
+            </div>
+            <ul class="legenda">
+              <li><span class="led led-ativo"></span>Ativo</li>
+              <li><span class="led led-espera"></span>Espera</li>
+              <li><span class="led led-inativo"></span>Inativo</li>
+              <li><span class="led led-semdados"></span>Sem dados</li>
+            </ul>
+          </header>
+          <div id="linhaTempo"></div>
+        </section>
+
+        <!-- 4. Capacidade + Alertas -->
+        <div class="duas-colunas col-1-3-1">
+          <section class="painel">
+            <header class="painel-cab">
+              <div>
+                <h2>Perda de capacidade produtiva</h2>
+                <p>Quanto do tempo monitorado virou produção.</p>
+              </div>
+            </header>
+            <div id="capacidade"></div>
+          </section>
+
+          <section class="painel">
+            <header class="painel-cab">
+              <div>
+                <h2>Alertas gerenciais</h2>
+                <p>Baseados em limites de referência.</p>
+              </div>
+            </header>
+            <div id="alertas"></div>
+          </section>
+        </div>
+
+        <!-- 5. Financeiro + Atividade -->
+        <div class="duas-colunas col-1-3-1">
+          <section class="painel">
+            <header class="painel-cab">
+              <div>
+                <h2>Visão financeira executiva</h2>
+                <p>Estimativas calculadas com os valores por hora que você informar — não são valores contábeis.</p>
+              </div>
+              <button type="button" class="botao" id="btnParametros">Configurar valores</button>
+            </header>
+            <div id="financeiro"></div>
+          </section>
+
+          <section class="painel">
+            <header class="painel-cab">
+              <div>
+                <h2>Atividade recente</h2>
+                <p>Últimas mudanças de estado.</p>
+              </div>
+            </header>
+            <div id="atividade"></div>
+          </section>
+        </div>
+
+        <!-- 6. Gráficos -->
+        <div class="duas-colunas col-2-1">
+          <section class="painel">
+            <header class="painel-cab">
+              <div>
+                <h2>Evolução da utilização</h2>
+                <p id="evolucaoSub">Distribuição dos estados ao longo do período (% do tempo monitorado).</p>
+              </div>
+            </header>
+            <div class="caixa-grafico"><canvas id="graficoEvolucao"></canvas><p class="vazio" data-vazio="graficoEvolucao">Sem dados no período.</p></div>
+          </section>
+
+          <section class="painel">
+            <header class="painel-cab">
+              <div>
+                <h2>Distribuição dos estados</h2>
+                <p>Horas por estado (todas as máquinas).</p>
+              </div>
+            </header>
+            <div class="caixa-grafico"><canvas id="graficoRosca"></canvas><p class="vazio" data-vazio="graficoRosca">Sem dados no período.</p></div>
+          </section>
+        </div>
+
+        <section class="painel">
+          <header class="painel-cab">
+            <div>
+              <h2>Tempo produtivo × improdutivo</h2>
+              <p>Horas por equipamento no período.</p>
+            </div>
+          </header>
+          <div class="caixa-grafico caixa-grafico-baixa"><canvas id="graficoHoras"></canvas><p class="vazio" data-vazio="graficoHoras">Sem dados no período.</p></div>
+        </section>
+
+        <!-- 7. Tabela -->
+        <section class="painel">
+          <header class="painel-cab">
+            <div>
+              <h2>Desempenho dos equipamentos</h2>
+              <p>Comparativo no período. Clique no título de uma coluna para ordenar.</p>
+            </div>
+          </header>
+          <div class="tabela-rolagem" id="tabela"></div>
+        </section>
+
+        <footer class="rodape">
+          <span id="rodapeSync">—</span>
+          <span>CARRISSIMI IoT · Projeto acadêmico de Governança de TI (SENAI)</span>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <!-- Janela: valores financeiros -->
+  <dialog id="dlgParametros" class="dialogo">
+    <form method="dialog" id="formParametros">
+      <h3>Valores para o cálculo financeiro</h3>
+      <p class="dialogo-texto">
+        Informe quanto custa (ou vale) uma hora. Os números ficam salvos só neste navegador.
+        Deixe em branco o que não souber — o painel avisa o que falta.
+      </p>
+      <div id="camposParametros"></div>
+      <div class="dialogo-botoes">
+        <button type="button" class="botao botao-perigo" id="btnLimparParametros">Limpar tudo</button>
+        <span class="espaco"></span>
+        <button type="button" class="botao" id="btnCancelarParametros">Cancelar</button>
+        <button type="submit" class="botao botao-principal" value="salvar">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Bibliotecas (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <!-- Nosso código (a ordem importa!) -->
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/metrics.js"></script>
+  <script src="js/demoData.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

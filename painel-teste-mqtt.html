@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel de Teste MQTT — Carrissimi IoT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+<style>
+  :root {
+    --bg: #12151a;
+    --panel: #1b2028;
+    --panel-2: #212832;
+    --border: #2c3440;
+    --text: #dfe4ea;
+    --muted: #7c8797;
+    --amber: #e8a13c;
+    --green: #4caf6d;
+    --red: #d9534f;
+    --gray-light: #3a4250;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(232,161,60,0.05), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(76,175,109,0.04), transparent 40%);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 48px;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+
+  header { margin-bottom: 20px; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 4px 0 0;
+    letter-spacing: -0.01em;
+  }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .conn-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .conn-left { display: flex; align-items: center; gap: 10px; }
+  .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--gray-light);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.03);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+  }
+  .dot.connecting { background: var(--amber); box-shadow: 0 0 10px 1px rgba(232,161,60,0.55); animation: pulse 1.1s infinite; }
+  .dot.connected { background: var(--green); box-shadow: 0 0 10px 1px rgba(76,175,109,0.55); }
+  .dot.error { background: var(--red); box-shadow: 0 0 10px 1px rgba(217,83,79,0.55); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+  .conn-label { font-size: 14px; font-weight: 500; }
+  .conn-sub { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .topic-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--amber);
+    background: rgba(232,161,60,0.09);
+    border: 1px solid rgba(232,161,60,0.25);
+    padding: 5px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .status-display {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 22px 4px 6px;
+  }
+  .lamp {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #454f5e, #262c35);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+  }
+  .lamp.ativo { background: radial-gradient(circle at 35% 30%, #7be29a, var(--green)); box-shadow: 0 0 18px 2px rgba(76,175,109,0.55); }
+  .lamp.espera { background: radial-gradient(circle at 35% 30%, #f4c473, var(--amber)); box-shadow: 0 0 18px 2px rgba(232,161,60,0.55); }
+  .lamp.inativo { background: radial-gradient(circle at 35% 30%, #e08683, var(--red)); box-shadow: 0 0 18px 2px rgba(217,83,79,0.5); }
+
+  .status-text .big { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; text-transform: lowercase; }
+  .status-text .small { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  button {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.05s ease;
+  }
+  button:hover { border-color: var(--amber); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: rgba(232,161,60,0.12); border-color: rgba(232,161,60,0.4); color: var(--amber); }
+
+  .log-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .log-head h2 { font-size: 13px; font-weight: 600; margin: 0; color: var(--muted); text-transform: none; }
+  .log {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    max-height: 260px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
+  .log-empty { color: var(--muted); padding: 14px 2px; font-size: 12.5px; }
+  .log-row {
+    display: flex; gap: 10px;
+    padding: 8px 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-payload { color: var(--text); word-break: break-all; }
+  .log-row.tick .log-payload { color: #90a0b3; }
+
+  footer { color: var(--muted); font-size: 11.5px; text-align: center; margin-top: 18px; line-height: 1.6; }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 420px) {
+    .conn-row { align-items: flex-start; }
+    .status-display { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">CARRISSIMI IoT · teste de conectividade</div>
+    <h1>Painel de teste MQTT</h1>
+    <div class="sub">Simula o que o CLP vai enviar, usando o broker público de testes da HiveMQ.</div>
+  </header>
+
+  <div class="panel">
+    <div class="conn-row">
+      <div class="conn-left">
+        <div class="dot" id="dot"></div>
+        <div>
+          <div class="conn-label" id="connLabel">Desconectado</div>
+          <div class="conn-sub">preencha os dados e clique em Conectar</div>
+        </div>
+      </div>
+      <div class="topic-chip" id="topicChip">carissimi/torno01/status</div>
+    </div>
+    <div class="conn-form" style="margin-top: 16px; display: grid; grid-template-columns: 1fr 90px; gap: 10px;">
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Host</label>
+        <input id="fieldHost" type="text" value="63791bf730674dcc876d29a7ea5968e4.s1.eu.hivemq.cloud"
+          style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12.5px;">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Porta</label>
+        <input id="fieldPort" type="text" value="8884"
+          style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12.5px;">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Usuário</label>
+        <input id="fieldUser" type="text" placeholder="carissimi-app"
+          style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12.5px;">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Senha</label>
+        <input id="fieldPass" type="password" placeholder="senha"
+          style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12.5px;">
+      </div>
+    </div>
+    <div style="margin-top: 12px;">
+      <button class="primary" id="btnConnect">Conectar</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="status-display">
+      <div class="lamp" id="lamp"></div>
+      <div class="status-text">
+        <div class="big" id="statusBig">aguardando sinal</div>
+        <div class="small" id="statusSmall">nenhuma mensagem recebida ainda</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="btnAtivo" disabled>Simular: ativo</button>
+      <button id="btnEspera" disabled>Simular: espera</button>
+      <button id="btnInativo" disabled>Simular: inativo</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="log-head">
+      <h2>Mensagens recebidas</h2>
+    </div>
+    <div class="log" id="log">
+      <div class="log-empty">Aguardando a primeira mensagem no tópico…</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="conn-row" style="margin-bottom: 10px;">
+      <div class="conn-left">
+        <div class="dot" id="bridgeDot"></div>
+        <div>
+          <div class="conn-label">Ponte para o Supabase</div>
+          <div class="conn-sub">equipamento: Torno CNC (id 1)</div>
+        </div>
+      </div>
+    </div>
+    <div class="log" id="bridgeLog">
+      <div class="log-empty">Nenhuma gravação ainda.</div>
+    </div>
+  </div>
+
+  <footer>
+    Ferramenta de teste — usa o broker público da HiveMQ, aberto a qualquer pessoa, e grava
+    de verdade no Supabase do projeto.<br>
+    Só funciona enquanto esta aba estiver aberta — não é o gateway final, é uma ponte para testes.
+  </footer>
+
+</div>
+
+<script>
+  const TOPIC = 'carissimi/torno01/status';
+  const dot = document.getElementById('dot');
+  const connLabel = document.getElementById('connLabel');
+  const lamp = document.getElementById('lamp');
+  const statusBig = document.getElementById('statusBig');
+  const statusSmall = document.getElementById('statusSmall');
+  const logEl = document.getElementById('log');
+  const btnAtivo = document.getElementById('btnAtivo');
+  const btnEspera = document.getElementById('btnEspera');
+  const btnInativo = document.getElementById('btnInativo');
+  const bridgeDot = document.getElementById('bridgeDot');
+  const bridgeLog = document.getElementById('bridgeLog');
+
+  let client;
+  let firstMessage = true;
+  let firstBridgeLog = true;
+
+  // ---- Ponte com o Supabase ----
+  const EQUIPAMENTO_ID = 1; // Torno CNC
+  const SUPABASE_URL = 'https://itektsdofwuqkktzqmre.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_wiauQzCCTQVV4hxidr9gqA_flt_R352';
+  const STATUS_MAP = { ativo: 'ATIVO', espera: 'EM_ESPERA', inativo: 'INATIVO' };
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function addBridgeLog(text, ok) {
+    if (firstBridgeLog) { bridgeLog.innerHTML = ''; firstBridgeLog = false; }
+    const row = document.createElement('div');
+    row.className = 'log-row' + (ok ? '' : ' tick');
+    const time = document.createElement('div');
+    time.className = 'log-time';
+    time.textContent = new Date().toLocaleTimeString('pt-BR');
+    const msg = document.createElement('div');
+    msg.className = 'log-payload';
+    msg.style.color = ok ? 'var(--green)' : 'var(--red)';
+    msg.textContent = text;
+    row.appendChild(time);
+    row.appendChild(msg);
+    bridgeLog.prepend(row);
+    while (bridgeLog.children.length > 30) bridgeLog.removeChild(bridgeLog.lastChild);
+  }
+
+  async function bridgeToSupabase(rawStatus) {
+    const statusDb = STATUS_MAP[rawStatus];
+    if (!statusDb) {
+      addBridgeLog('Mensagem ignorada (status "' + rawStatus + '" não reconhecido)', false);
+      return;
+    }
+    bridgeDot.className = 'dot connecting';
+    const nowIso = new Date().toISOString();
+
+    const { data: equipRow, error: erroSelect } = await sb
+      .from('equipamentos')
+      .select('empresa_id')
+      .eq('id', EQUIPAMENTO_ID)
+      .single();
+    if (erroSelect) {
+      bridgeDot.className = 'dot error';
+      addBridgeLog('Erro ao localizar equipamento: ' + erroSelect.message, false);
+      return;
+    }
+
+    const { error: erroUpdate } = await sb
+      .from('equipamentos')
+      .update({ status_atual: statusDb, atualizado_em: nowIso })
+      .eq('id', EQUIPAMENTO_ID);
+    if (erroUpdate) {
+      bridgeDot.className = 'dot error';
+      addBridgeLog('Erro ao atualizar equipamento: ' + erroUpdate.message, false);
+      return;
+    }
+
+    const { error: erroInsert } = await sb.from('historico_status').insert({
+      equipamento_id: EQUIPAMENTO_ID,
+      empresa_id: equipRow.empresa_id,
+      status: statusDb,
+      registrado_em: nowIso,
+    });
+    if (erroInsert) {
+      bridgeDot.className = 'dot error';
+      addBridgeLog('Status atualizado, mas erro ao gravar histórico: ' + erroInsert.message, false);
+      return;
+    }
+
+    bridgeDot.className = 'dot connected';
+    addBridgeLog('Gravado no Supabase: ' + statusDb, true);
+  }
+  // ---- fim da ponte ----
+
+  function setConn(state, label) {
+    dot.className = 'dot ' + state;
+    connLabel.textContent = label;
+  }
+
+  function applyStatus(value) {
+    lamp.className = 'lamp';
+    if (value === 'ativo') { lamp.classList.add('ativo'); statusBig.textContent = 'ativo'; }
+    else if (value === 'espera') { lamp.classList.add('espera'); statusBig.textContent = 'em espera'; }
+    else if (value === 'inativo') { lamp.classList.add('inativo'); statusBig.textContent = 'inativo'; }
+    else { statusBig.textContent = value || '—'; }
+    statusSmall.textContent = 'última atualização: ' + new Date().toLocaleTimeString('pt-BR');
+  }
+
+  function addLog(payload) {
+    if (firstMessage) { logEl.innerHTML = ''; firstMessage = false; }
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    const time = document.createElement('div');
+    time.className = 'log-time';
+    time.textContent = new Date().toLocaleTimeString('pt-BR');
+    const msg = document.createElement('div');
+    msg.className = 'log-payload';
+    msg.textContent = payload;
+    row.appendChild(time);
+    row.appendChild(msg);
+    logEl.prepend(row);
+    while (logEl.children.length > 40) logEl.removeChild(logEl.lastChild);
+  }
+
+  function connect() {
+    const host = document.getElementById('fieldHost').value.trim();
+    const port = document.getElementById('fieldPort').value.trim();
+    const user = document.getElementById('fieldUser').value.trim();
+    const pass = document.getElementById('fieldPass').value;
+
+    if (!host || !port) {
+      setConn('error', 'Preencha host e porta');
+      return;
+    }
+
+    setConn('connecting', 'Conectando…');
+    const clientId = 'carrissimi-teste-' + Math.random().toString(16).slice(2, 10);
+    client = new Paho.MQTT.Client(host, Number(port), '/mqtt', clientId);
+
+    client.onConnectionLost = (responseObject) => {
+      console.warn('Conexão perdida:', responseObject.errorMessage);
+      dot.className = 'dot error';
+      setConn('error', 'Desconectado: ' + (responseObject.errorMessage || ''));
+      [btnAtivo, btnEspera, btnInativo].forEach(b => b.disabled = true);
+    };
+
+    client.onMessageArrived = (message) => {
+      const payload = message.payloadString;
+      addLog(payload);
+      try {
+        const parsed = JSON.parse(payload);
+        if (parsed && parsed.status) {
+          applyStatus(parsed.status);
+          bridgeToSupabase(parsed.status);
+        }
+      } catch (e) {
+        // mensagem não é JSON, só loga
+      }
+    };
+
+    client.connect({
+      userName: user || undefined,
+      password: pass || undefined,
+      useSSL: true,
+      timeout: 8,
+      onSuccess: () => {
+        setConn('connected', 'Conectado');
+        client.subscribe(TOPIC);
+        [btnAtivo, btnEspera, btnInativo].forEach(b => b.disabled = false);
+      },
+      onFailure: (err) => {
+        console.error('Falha ao conectar:', err);
+        setConn('error', 'Erro de conexão: ' + (err && err.errorMessage ? err.errorMessage : 'verifique usuário/senha'));
+      },
+    });
+  }
+
+  function publish(status) {
+    if (!client || !client.isConnected()) return;
+    const payload = JSON.stringify({ status });
+    const message = new Paho.MQTT.Message(payload);
+    message.destinationName = TOPIC;
+    client.send(message);
+  }
+
+  document.getElementById('btnConnect').addEventListener('click', connect);
+  btnAtivo.addEventListener('click', () => publish('ativo'));
+  btnEspera.addEventListener('click', () => publish('espera'));
+  btnInativo.addEventListener('click', () => publish('inativo'));
+</script>
+</body>
+</html>
