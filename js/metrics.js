@@ -27,7 +27,7 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
     if (v === 'ativo') return 'ativo';
-    if (v === 'espera' || v === 'em espera') return 'espera';
+    if (v === 'espera' || v === 'em espera' || v === 'em_espera') return 'espera';
     if (v === 'inativo') return 'inativo';
     return null;
   }
